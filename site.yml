@@ -1,0 +1,15 @@
+---
+# deployworkstation.yml
+  - hosts: localhost
+    connection: local
+    gather_facts: no
+    roles:
+      - role: launch
+        name: "{{ group_name }}amibuild"
+ 
+  - hosts: "{{ group_name }}amibuild"
+    become: True
+    become_user: root
+    become_method: sudo
+    roles:
+      - workstation

@@ -1,0 +1,85 @@
+#!/bin/sh
+#
+# aws-swap-init
+#
+
+DEFAULTSIZE=4194304
+
+start () {
+    # Check to see if there is swap mounted right now
+    # If there is, we're done here
+    ISSWAP=`/bin/cat /proc/meminfo | /bin/grep SwapTotal | /usr/bin/awk '{print $2}'`
+    if [ $ISSWAP -ne 0 ]
+    then
+        exit 0
+    fi
+
+    # What OS are we running?
+    if [ -f /etc/system-release -o -f /etc/redhat-release ]
+    then
+        OSTYPE="amzn"
+    elif [ -f /etc/lsb-release ]
+    then
+        OSTYPE="ubuntu"
+    fi
+
+    # Set the target directory. If unsupported platform, use root
+    case "$OSTYPE" in
+        amzn)
+            TARGET="/media/ephemeral0"
+            ;;
+        ubuntu)
+            TARGET="/mnt"
+            ;;
+        *)
+            TARGET="/"
+            ;;
+    esac
+
+    # Does a swapfile already exist? If so, activate and be done
+    if [ -f $TARGET/swapfile00 ]
+    then
+        /sbin/swapon $TARGET/swapfile00
+        exit 0
+    fi
+ 
+    # OK, so there's no existing swapfile. Let's make one and activate it.
+
+    # If we're on an unsupported OS, or ephemeral disk isn't mounted, use a safe
+    # default size. Otherwise, use RAM size
+    if [ $TARGET = "/" ]
+    then
+        SIZE=$DEFAULTSIZE
+    else
+        /bin/mount | grep -q " on $TARGET type "
+        if [ $? -eq 0 ]
+        then
+            SIZE=`/bin/cat /proc/meminfo | /bin/grep "^MemTotal" | /usr/bin/awk '{print $2}'`
+        else
+            SIZE=$DEFAULTSIZE
+            TARGET="/"
+        fi
+    fi
+        
+    # OK, time to get down to business.
+    /bin/dd if=/dev/zero of=$TARGET/swapfile00 bs=1024 count=$SIZE
+    /sbin/mkswap $TARGET/swapfile00
+    /sbin/swapon $TARGET/swapfile00
+}
+
+stop () {
+    exit 0
+}
+
+case "$1" in
+    start)
+        $1
+        ;;
+    stop)
+        $1
+        ;;
+    *)
+        echo $"Usage: $0 {start|stop}"
+        exit 2
+esac
+exit $?

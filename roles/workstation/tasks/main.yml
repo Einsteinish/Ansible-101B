@@ -1,0 +1,7 @@
+---
+# roles/workstation/tasks/main.yml
+  - name: add timezone configuration
+    command: bash -c 'echo US/Eastern > /etc/timezone'
+
+
+
